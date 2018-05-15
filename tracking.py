@@ -65,6 +65,19 @@ def main():
         for frame in list:
             cv2.imshow(frame[0], np.asarray((frame[1]), np.uint8))
 
+    def calculate_angles(centre):
+        # tan(theta/2) = dimension/2 * tan(63/2)/(diagonal/2)
+        # e.g. horizontal: tan(theta/2) = 320*tan(31.5)/400
+        # Angle from centre to edge of webcam (horizontal) = 26.1 degrees, 0.377 rad
+        # Angle from centre to edge of webcam (vertical) = 20.2 degrees, 0.353 rad
+        # tan(thetad)/tan(thetat) = dist/total
+        dx = centre[0] - 320
+        dy = centre[1] - 240
+        angle = np.arctan([np.tan(0.377) * dx / 320, np.tan(0.353) * dy / 240]) + np.pi / 2
+        return np.asarray(np.degrees(angle), int)
+
+    def write_to_servos():
+        pass
 
     def nothing(a):
         pass
