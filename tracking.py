@@ -1,6 +1,6 @@
 import cv2
 import numpy as np
-
+from scipy import stats
 
 def main():
     cap = cv2.VideoCapture(0)
@@ -40,14 +40,19 @@ def main():
         cv2.putText(frame, str(coords[0]) + ', ' + str(coords[1]), (15, 465), font, 0.5, colour, 1, cv2.LINE_AA)
 
     def identify_object(frame):
-
+        
+        _,frame1 = cv2.connectedComponents(frame)
+        if np.amax(frame1)!=0:
+            mode = stats.mode(frame1[frame1!=0], axis=None)[0][0]
+        else:
+            mode = 1
+        
         tl = [0, 0]  # Top left
         br = [0, 0]  # Bottom right
-        tl[1], br[1] = find_top_and_bottom(255, frame)  # Finds Y coords of white pixel limits
-        tl[0], br[0] = find_top_and_bottom(255, np.rot90(frame, 3))  # Finds X coords of white pixel limits
+        tl[1], br[1] = find_top_and_bottom(mode, frame1)  # Finds Y coords of white pixel limits
+        tl[0], br[0] = find_top_and_bottom(mode, np.rot90(frame1, 3))  # Finds X coords of white pixel limits
         centre = [int((tl[0] + br[0]) / 2), int((tl[1] + br[1]) / 2)]  # Finds centre
         draw_box_and_coords([tl[0], tl[1]], [br[0], br[1]], [centre[0], centre[1]], frame, (255, 255, 255))
-
         return centre
 
     def press_key():
