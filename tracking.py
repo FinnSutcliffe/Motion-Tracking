@@ -4,9 +4,12 @@ from scipy import stats
 
 def main():
     cap = cv2.VideoCapture(0)
+    WIDTH = 40
+    HEIGHT = 30
 
     def receive_frame(cap):
         ret, image = cap.read()
+        image = cv2.resize(image, (WIDTH,HEIGHT))
         return cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)  # Returns grayscale image
 
     def compare_frame(frame1, frame2):
@@ -19,7 +22,7 @@ def main():
 
     def blur_frame(frame, radius):
         kernal = np.ones((radius, radius), np.float32) / (radius * radius)  # Defines area for averaging around pixel
-        frame = cv2.filter2D(frame, -1, kernal)  # Averages frame
+        frame = cv2.filter2D(np.array(frame,dtype='float32'), -1, kernal)  # Averages frame
         return frame
 
     def find_top_and_bottom(element, array):
@@ -66,8 +69,8 @@ def main():
         elif keypress == ord("r"):
             return 3
 
-    def draw_frames(list):  # List of [['title',frame]...]
-        for frame in list:
+    def draw_frames(list1):  # List of [['title',frame]...]
+        for frame in list1:
             cv2.imshow(frame[0], np.asarray((frame[1]), np.uint8))
 
     def calculate_angles(centre):
@@ -106,7 +109,7 @@ def main():
         if flow == 1:  # Static background subtract
             base_frame = receive_frame(cap)
             compared_frame = compare_frame(base_frame, background)
-            blurred_frame = blur_frame(compared_frame, 25)
+            blurred_frame = blur_frame(compared_frame, 3)
             thr_frame = threshold_frame(blurred_frame, threshold)
 
             # thr1_frame = threshold_frame(compared_frame,threshold)
@@ -118,15 +121,20 @@ def main():
             timer += 1
             base_frame = receive_frame(cap)
             compared_frame = compare_frame(base_frame, background)
-            blurred_frame = blur_frame(compared_frame, 25)
+            blurred_frame = blur_frame(compared_frame, 3)
             thr_frame = threshold_frame(blurred_frame, threshold)
             if timer == 1:
                 background = base_frame
                 timer = 0
 
+        base_frame = cv2.resize(base_frame, (640,480))
+        blurred_frame = cv2.resize(np.asarray(blurred_frame,np.uint8), (640,480))
+        thr_frame = cv2.resize(thr_frame, (640,480))
+
+        
         centre = identify_object(thr_frame)
 
-        draw_frames([['base_frame', base_frame], ['blurred_frame', blurred_frame], ['thr_frame', thr_frame]])
+        draw_frames([['thr_frame', thr_frame]])#[['base_frame', base_frame]], ['blurred_frame', blurred_frame], ['thr_frame', thr_frame]])
 
         if not trackbars_created:
             cv2.createTrackbar('T', 'thr_frame', threshold, 100, nothing)
