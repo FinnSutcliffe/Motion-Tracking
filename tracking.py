@@ -1,6 +1,7 @@
 import cv2
 import numpy as np
 from scipy import stats
+import time
 
 def main():
     cap = cv2.VideoCapture(0)
@@ -95,6 +96,7 @@ def main():
     threshold = 20
     background = receive_frame(cap)
     while True:
+        t1= time.time()
         key = press_key()
         if key == 1:
             flow = 1
@@ -112,11 +114,6 @@ def main():
             blurred_frame = blur_frame(compared_frame, 3)
             thr_frame = threshold_frame(blurred_frame, threshold)
 
-            # thr1_frame = threshold_frame(compared_frame,threshold)
-            # blurred2_frame = blur_frame(thr1_frame, 25)
-            # thr3_frame = threshold_frame(blurred2_frame,threshold)
-
-
         elif flow == 2:  # Dynamic background subtract
             timer += 1
             base_frame = receive_frame(cap)
@@ -128,19 +125,19 @@ def main():
                 timer = 0
 
         base_frame = cv2.resize(base_frame, (640,480))
-        blurred_frame = cv2.resize(np.asarray(blurred_frame,np.uint8), (640,480))
+        #blurred_frame = cv2.resize(np.asarray(blurred_frame,np.uint8), (640,480))
         thr_frame = cv2.resize(thr_frame, (640,480))
 
         
         centre = identify_object(thr_frame)
-
-        draw_frames([['thr_frame', thr_frame]])#[['base_frame', base_frame]], ['blurred_frame', blurred_frame], ['thr_frame', thr_frame]])
+    
+        draw_frames([['base_frame', base_frame],['thr_frame', thr_frame]])#[['base_frame', base_frame], ['blurred_frame', blurred_frame], ['thr_frame', thr_frame]])
 
         if not trackbars_created:
             cv2.createTrackbar('T', 'thr_frame', threshold, 100, nothing)
             trackbars_created = True
         threshold = cv2.getTrackbarPos('T', 'thr_frame')
-
+        print time.time()-t1
 
     cap.release()
     cv2.destroyAllWindows()
