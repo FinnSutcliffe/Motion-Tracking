@@ -26,17 +26,6 @@ def main():
         frame = cv2.filter2D(np.array(frame,dtype='float32'), -1, kernal)  # Averages frame
         return frame
 
-    def find_top_and_bottom(element, array):
-        top = -1
-        for y, row in enumerate(array):  # Returns index and list
-            if element in row:
-                bottom = y
-                if top == -1:  # If top not already set
-                    top = y  # Set top y coord
-        if top == -1:  # If no element found at all
-            return int(len(array) / 2), int(len(array) / 2)  # Return midpoint of frame
-        return top, bottom
-
     def draw_box_and_coords(topleft, bottomright, coords, frame, colour):
         font = cv2.FONT_HERSHEY_SIMPLEX
         cv2.rectangle(frame, (topleft[0], topleft[1]), (bottomright[0], bottomright[1]), colour, 1)
@@ -51,10 +40,11 @@ def main():
         else:
             mode = 1
         
-        tl = [0, 0]  # Top left
-        br = [0, 0]  # Bottom right
-        tl[1], br[1] = find_top_and_bottom(mode, frame1)  # Finds Y coords of white pixel limits
-        tl[0], br[0] = find_top_and_bottom(mode, np.rot90(frame1, 3))  # Finds X coords of white pixel limits
+        frame1 = np.asarray(frame1,np.uint8)
+        frame1[frame1 != mode] = 0
+        x,y,w,h = cv2.boundingRect(frame1)
+        tl = [x, y]
+        br = [x+w, y+h]  # Bottom right
         centre = [int((tl[0] + br[0]) / 2), int((tl[1] + br[1]) / 2)]  # Finds centre
         draw_box_and_coords([tl[0], tl[1]], [br[0], br[1]], [centre[0], centre[1]], frame, (255, 255, 255))
         return centre
@@ -107,12 +97,21 @@ def main():
             break
         elif key == 3:
             background = receive_frame(cap)
-
+        print "Keypresses", time.time()-t1
+        t1 = time.time()
         if flow == 1:  # Static background subtract
             base_frame = receive_frame(cap)
+            print "Receive frame", time.time()-t1
+            t1 = time.time()
             compared_frame = compare_frame(base_frame, background)
+            print "Compare frame", time.time()-t1
+            t1 = time.time()
             blurred_frame = blur_frame(compared_frame, 3)
+            print "Blur frame", time.time()-t1
+            t1 = time.time()
             thr_frame = threshold_frame(blurred_frame, threshold)
+            print "Thr frame", time.time()-t1
+            t1 = time.time()
 
         elif flow == 2:  # Dynamic background subtract
             timer += 1
@@ -125,19 +124,27 @@ def main():
                 timer = 0
 
         base_frame = cv2.resize(base_frame, (640,480))
+        print "Resize base", time.time()-t1
+        t1 = time.time()
         #blurred_frame = cv2.resize(np.asarray(blurred_frame,np.uint8), (640,480))
         thr_frame = cv2.resize(thr_frame, (640,480))
-
+        print "Resize thr", time.time()-t1
+        t1 = time.time()
         
         centre = identify_object(thr_frame)
-    
+        print "Find centre", time.time()-t1
+        t1 = time.time()
         draw_frames([['base_frame', base_frame],['thr_frame', thr_frame]])#[['base_frame', base_frame], ['blurred_frame', blurred_frame], ['thr_frame', thr_frame]])
-
+        print "Draw frames", time.time()-t1
+        t1 = time.time()
         if not trackbars_created:
             cv2.createTrackbar('T', 'thr_frame', threshold, 100, nothing)
             trackbars_created = True
         threshold = cv2.getTrackbarPos('T', 'thr_frame')
-        print time.time()-t1
+        print "Trackbars", time.time()-t1
+        print
+        print
+        print
 
     cap.release()
     cv2.destroyAllWindows()
