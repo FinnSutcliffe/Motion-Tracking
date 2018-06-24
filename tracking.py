@@ -2,11 +2,28 @@ import cv2
 import numpy as np
 from scipy import stats
 import time
+import RPi.GPIO as GPIO
 
 def main():
     cap = cv2.VideoCapture(0)
     WIDTH = 40
     HEIGHT = 30
+    
+    GPIO.setmode(GPIO.BOARD)
+    GPIO.setup(22,GPIO.IN)
+    GPIO.setup(12,GPIO.OUT)
+    GPIO.setwarnings(False)
+    px = GPIO.PWM(16,50)
+    py = GPIO.PWM(12, 50)
+    px.start(7.5)
+    py.start(7.5)
+    
+    def refresh_background():
+        if GPIO.input(22): # Button
+            print "PUSHED"
+            return True
+        return None
+
 
     def receive_frame(cap):
         ret, image = cap.read()
@@ -50,7 +67,10 @@ def main():
         return centre
 
     def press_key():
+        t1 = time.time()
         keypress = cv2.waitKey(1) & 0xFF
+        #print "waitKey", time.time()-t1
+        t1 = time.time()
         if keypress == ord("q"):
             return 0
         elif keypress == ord("1"):
@@ -59,6 +79,8 @@ def main():
             return 2
         elif keypress == ord("r"):
             return 3
+        #print "Keyprocessing", time.time()-t1
+        t1 = time.time()
 
     def draw_frames(list1):  # List of [['title',frame]...]
         for frame in list1:
@@ -75,19 +97,26 @@ def main():
         angle = np.arctan([np.tan(0.377) * dx / 320, np.tan(0.353) * dy / 240]) + np.pi / 2
         return np.asarray(np.degrees(angle), int)
 
-    def write_to_servos():
-        pass
+    def write_to_servos(angle):
+        x = round(angle[1]/18,1)+2.5
+        y = round(angle[1]/18,1)+2.5
+        px.ChangeDutyCycle(x)
+        py.ChangeDutyCycle(y)
 
     def nothing(a):
         pass
 
     flow = 1
     trackbars_created = False
-    threshold = 20
+    threshold = 100
     background = receive_frame(cap)
+    counter = 0
     while True:
         t1= time.time()
+        t2 = t1
         key = press_key()
+        #print "Keypresses", time.time()-t1
+        t1 = time.time()
         if key == 1:
             flow = 1
         elif key == 2:
@@ -95,22 +124,24 @@ def main():
             timer = 0
         elif key == 0:
             break
-        elif key == 3:
+        #elif key == 3:
+        if refresh_background():
             background = receive_frame(cap)
-        print "Keypresses", time.time()-t1
+        flow = 1
+        #print "Keypresses", time.time()-t1
         t1 = time.time()
         if flow == 1:  # Static background subtract
             base_frame = receive_frame(cap)
-            print "Receive frame", time.time()-t1
+        #    print "Receive frame", time.time()-t1
             t1 = time.time()
             compared_frame = compare_frame(base_frame, background)
-            print "Compare frame", time.time()-t1
+        #    print "Compare frame", time.time()-t1
             t1 = time.time()
             blurred_frame = blur_frame(compared_frame, 3)
-            print "Blur frame", time.time()-t1
+        #    print "Blur frame", time.time()-t1
             t1 = time.time()
             thr_frame = threshold_frame(blurred_frame, threshold)
-            print "Thr frame", time.time()-t1
+        #    print "Thr frame", time.time()-t1
             t1 = time.time()
 
         elif flow == 2:  # Dynamic background subtract
@@ -124,27 +155,33 @@ def main():
                 timer = 0
 
         base_frame = cv2.resize(base_frame, (640,480))
-        print "Resize base", time.time()-t1
+        #print "Resize base", time.time()-t1
         t1 = time.time()
         #blurred_frame = cv2.resize(np.asarray(blurred_frame,np.uint8), (640,480))
         thr_frame = cv2.resize(thr_frame, (640,480))
-        print "Resize thr", time.time()-t1
+        #print "Resize thr", time.time()-t1
         t1 = time.time()
         
         centre = identify_object(thr_frame)
-        print "Find centre", time.time()-t1
+        #print centre
+        counter += 1
+        if counter == 100:
+            print "write"
+            write_to_servos(calculate_angles(centre))
+            counter = 0
+        #print "Find centre", time.time()-t1
         t1 = time.time()
         draw_frames([['base_frame', base_frame],['thr_frame', thr_frame]])#[['base_frame', base_frame], ['blurred_frame', blurred_frame], ['thr_frame', thr_frame]])
-        print "Draw frames", time.time()-t1
+        #print "Draw frames", time.time()-t1
         t1 = time.time()
         if not trackbars_created:
             cv2.createTrackbar('T', 'thr_frame', threshold, 100, nothing)
             trackbars_created = True
         threshold = cv2.getTrackbarPos('T', 'thr_frame')
-        print "Trackbars", time.time()-t1
-        print
-        print
-        print
+        #print "Trackbars", time.time()-t1
+        #print time.time()-t2
+        #print
+        #print
 
     cap.release()
     cv2.destroyAllWindows()
