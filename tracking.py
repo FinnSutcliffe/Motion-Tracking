@@ -2,26 +2,32 @@ import cv2
 import numpy as np
 from scipy import stats
 import time
+import pigpio
 import RPi.GPIO as GPIO
+
+
 
 def main():
     cap = cv2.VideoCapture(0)
     WIDTH = 40
     HEIGHT = 30
     
+    pi = pigpio.pi()
+    pi.set_mode(18,pigpio.OUTPUT)
+    pi.set_mode(23,pigpio.OUTPUT)
     GPIO.setmode(GPIO.BOARD)
     GPIO.setup(22,GPIO.IN)
-    GPIO.setup(12,GPIO.OUT)
+    GPIO.setup(15,GPIO.IN)
     GPIO.setwarnings(False)
-    px = GPIO.PWM(16,50)
-    py = GPIO.PWM(12, 50)
-    px.start(7.5)
-    py.start(7.5)
+
     
     def refresh_background():
-        if GPIO.input(22): # Button
-            print "PUSHED"
+        if not GPIO.input(15):
+            print "1PUSHED"
             return True
+        #if not GPIO.input(22): # Button
+        #    print "2PUSHED"
+        #    return True
         return None
 
 
@@ -54,16 +60,19 @@ def main():
         _,frame1 = cv2.connectedComponents(frame)
         if np.amax(frame1)!=0:
             mode = stats.mode(frame1[frame1!=0], axis=None)[0][0]
-        else:
-            mode = 1
         
-        frame1 = np.asarray(frame1,np.uint8)
-        frame1[frame1 != mode] = 0
-        x,y,w,h = cv2.boundingRect(frame1)
-        tl = [x, y]
-        br = [x+w, y+h]  # Bottom right
-        centre = [int((tl[0] + br[0]) / 2), int((tl[1] + br[1]) / 2)]  # Finds centre
+            frame1 = np.asarray(frame1,np.uint8)
+            frame1[frame1 != mode] = 0
+            x,y,w,h = cv2.boundingRect(frame1)
+            tl = [x, y]
+            br = [x+w, y+h]  # Bottom right
+            centre = [int((tl[0] + br[0]) / 2), int((tl[1] + br[1]) / 2)]  # Finds centre
+        else:
+            centre = [320, 240]
+            tl = [320,240]
+            br = [320,240]
         draw_box_and_coords([tl[0], tl[1]], [br[0], br[1]], [centre[0], centre[1]], frame, (255, 255, 255))
+        print "centre", centre
         return centre
 
     def press_key():
@@ -95,13 +104,18 @@ def main():
         dx = centre[0] - 320
         dy = centre[1] - 240
         angle = np.arctan([np.tan(0.377) * dx / 320, np.tan(0.353) * dy / 240]) + np.pi / 2
+        angle[0] = np.pi - np.array(angle)[0] 
         return np.asarray(np.degrees(angle), int)
 
-    def write_to_servos(angle):
-        x = round(angle[1]/18,1)+2.5
-        y = round(angle[1]/18,1)+2.5
-        px.ChangeDutyCycle(x)
-        py.ChangeDutyCycle(y)
+    def write_to_servos(angle, pi):
+        servoy = 18
+        servox = 23
+        x = round(angle[0]*2000/180,1)+500
+        y = round(angle[1]*2000/180,1)+500
+        print angle
+        print x,y
+        pi.set_servo_pulsewidth(servox, x)
+        pi.set_servo_pulsewidth(servoy, y)
 
     def nothing(a):
         pass
@@ -165,9 +179,9 @@ def main():
         centre = identify_object(thr_frame)
         #print centre
         counter += 1
-        if counter == 100:
+        if counter == 1:
             print "write"
-            write_to_servos(calculate_angles(centre))
+            write_to_servos(calculate_angles(centre),pi)
             counter = 0
         #print "Find centre", time.time()-t1
         t1 = time.time()
@@ -185,6 +199,7 @@ def main():
 
     cap.release()
     cv2.destroyAllWindows()
-
+    pi.stop()
+    GPIO.cleanup()
 
 main()
