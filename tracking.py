@@ -9,8 +9,8 @@ import RPi.GPIO as GPIO
 
 def main():
     cap = cv2.VideoCapture(0)
-    WIDTH = 40
-    HEIGHT = 30
+    WIDTH = 640
+    HEIGHT = 480
     
     pi = pigpio.pi()
     pi.set_mode(18,pigpio.OUTPUT)
@@ -22,7 +22,7 @@ def main():
 
     
     def refresh_background():
-        if not GPIO.input(15):
+        if GPIO.input(15):
             print "1PUSHED"
             return True
         #if not GPIO.input(22): # Button
@@ -122,7 +122,7 @@ def main():
 
     flow = 1
     trackbars_created = False
-    threshold = 100
+    threshold = 20
     background = receive_frame(cap)
     counter = 0
     while True:
@@ -146,17 +146,9 @@ def main():
         t1 = time.time()
         if flow == 1:  # Static background subtract
             base_frame = receive_frame(cap)
-        #    print "Receive frame", time.time()-t1
-            t1 = time.time()
             compared_frame = compare_frame(base_frame, background)
-        #    print "Compare frame", time.time()-t1
-            t1 = time.time()
-            blurred_frame = blur_frame(compared_frame, 3)
-        #    print "Blur frame", time.time()-t1
-            t1 = time.time()
+            blurred_frame = blur_frame(compared_frame, 10)
             thr_frame = threshold_frame(blurred_frame, threshold)
-        #    print "Thr frame", time.time()-t1
-            t1 = time.time()
 
         elif flow == 2:  # Dynamic background subtract
             timer += 1

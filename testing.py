@@ -1,6 +1,5 @@
 import cv2
 from time import sleep
-import simplecv
 
 cap = cv2.VideoCapture(0)
 
